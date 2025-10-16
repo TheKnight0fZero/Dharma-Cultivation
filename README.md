@@ -8,11 +8,11 @@
 
 ### 1. Problem Statement
 - **What problem are we solving?** 
-  - Manual translation of manga/illustrated PDFs is time-consuming
+  - Manual translation of illustrated PDFs is time-consuming
   - Current tools require internet/subscriptions
   
 - **Who has this problem?**
-  - Manga readers
+  - Casual readers
   - Researchers working with foreign documents
   - Language learners
 
