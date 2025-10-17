@@ -8,7 +8,7 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, scrolledtext
 from PIL import Image, ImageTk
 import pytesseract
-from googletrans import Translator
+from deep_translator import GoogleTranslator
 import os
 
 class SimpleTranslator:
@@ -18,7 +18,7 @@ class SimpleTranslator:
         self.root.geometry("800x600")
         
         # Initialize translator
-        self.translator = Translator()
+        pass  # We'll create translator when needed
         self.current_image_path = None
         
         # Build simple UI
@@ -95,11 +95,12 @@ class SimpleTranslator:
                 return
                 
             # Translate text
-            result = self.translator.translate(extracted_text, dest='en')
-            
+            translator = GoogleTranslator(source='auto', target='en')
+            translation = translator.translate(extracted_text)
+
             # Show results
             output = f"ORIGINAL TEXT:\n{'-'*50}\n{extracted_text}\n\n"
-            output += f"TRANSLATED TO ENGLISH:\n{'-'*50}\n{result.text}"
+            output += f"TRANSLATED TO ENGLISH:\n{'-'*50}\n{translation}"
             
             self.text_output.delete(1.0, tk.END)
             self.text_output.insert(1.0, output)
