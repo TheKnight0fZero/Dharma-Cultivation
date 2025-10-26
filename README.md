@@ -33,11 +33,11 @@ Reduced manual translation time by 90% (from 5 hours to 30 minutes for 100-page 
 - **Languages**: 5 language support
 - **Enhancement**: Advanced image preprocessing
 - **Corrections**: English text fix algorithms
-- **Issues**: 58 style violations (fixed in v1.2)
+- **Issues**: 58 style violations 
 
 ### v1.2 (Day 2) 
 - **Quality**: Full PEP 8 compliance (0 errors)
 - **Linting**: Ruff integration
 - **Documentation**: Complete with type hints
 - **Organization**: Clean project structure
-- **Status**: Testing ready
+- **Issues**: Needs batch function and eror handling
