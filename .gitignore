@@ -1,0 +1,12 @@
+# Python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Images
+enhanced_*.png
+enhanced_*.jpg
+
+# Temp files
+*.tmp
+ruff_settings.txt

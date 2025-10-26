@@ -1,0 +1,15 @@
+# Ignore old versions
+V1.0/
+V1.1/
+
+# Ignore test images
+*.png
+*.jpg
+*.jpeg
+
+# Ignore enhanced images
+enhanced_*
+
+# Ignore any archive folders
+archive/
+old/
