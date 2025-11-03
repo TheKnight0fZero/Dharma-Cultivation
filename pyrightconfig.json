@@ -1,0 +1,10 @@
+{
+    "exclude": [
+        "**/v1.2/**",
+        "**/translator_v1.2.ipynb",
+        "**/*_v1.2.*"
+    ],
+    "reportGeneralTypeIssues": true,
+    "reportMissingImports": true,
+    "pythonVersion": "3.9"
+}
