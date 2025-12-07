@@ -1,6 +1,7 @@
-# app.py - Universal Translator v1.5 UI
+# app.py - Universal Translator v1.5 UI with Visual Translation
 """
 Universal Translator Web Interface.
+Now with VISUAL TRANSLATION - replaces text in images!
 
 Version: 1.5
 Developer: Victor
@@ -10,10 +11,13 @@ import os
 import tempfile
 import zipfile
 import json
+import base64
 from datetime import datetime
 from pathlib import Path
+import shutil
 
 import streamlit as st
+from PIL import Image
 
 # Additional imports for downloads
 try:
@@ -36,11 +40,11 @@ except ImportError as e:
 MAX_LINE_LENGTH = 79
 SUPPORTED_TYPES = ['jpg', 'jpeg', 'png', 'pdf', 'txt', 'zip']
 LANGUAGES = ["Auto-detect", "Chinese", "Japanese", "Korean", "Hindi"]
-OUTPUT_FORMATS = ["PDF", "Text", "Both"]
+OUTPUT_FORMATS = ["Visual (Images/PDF)", "Text Only", "Both"]
 
 # Page configuration
 st.set_page_config(
-    page_title="Universal Translator v1.5",
+    page_title="Universal Translator v1.5 - Visual",
     page_icon="🌍",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -62,6 +66,12 @@ css_style = """
 .stButton>button:hover {
     background-color: #45a049;
 }
+.image-container {
+    border: 2px solid #ddd;
+    border-radius: 10px;
+    padding: 10px;
+    margin: 10px 0;
+}
 </style>
 """
 st.markdown(css_style, unsafe_allow_html=True)
@@ -71,6 +81,8 @@ if 'processed_files' not in st.session_state:
     st.session_state.processed_files = []
 if 'translation_history' not in st.session_state:
     st.session_state.translation_history = []
+if 'translated_files_paths' not in st.session_state:
+    st.session_state.translated_files_paths = []
 
 
 def get_file_icon(filename):
@@ -94,11 +106,57 @@ def format_file_size(size_bytes):
     return f"{size_kb:.2f} KB"
 
 
-# Header
-st.title("🌍 Universal Translator v1.5")
+def display_image_comparison(original_path, translated_path, filename):
+    """Display original and translated images side by side."""
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("📥 Original")
+        if original_path and os.path.exists(original_path):
+            original_img = Image.open(original_path)
+            st.image(original_img, caption=f"Original: {filename}", use_column_width=True)
+        else:
+            st.info("Original image not available")
+    
+    with col2:
+        st.subheader("📤 Translated")
+        if translated_path and os.path.exists(translated_path):
+            translated_img = Image.open(translated_path)
+            st.image(translated_img, caption=f"Translated: {filename}", use_column_width=True)
+            
+            # Download button for translated image
+            with open(translated_path, 'rb') as f:
+                img_data = f.read()
+            st.download_button(
+            label=f"💾 Download Translated Image",
+            data=img_data,
+            file_name=f"translated_{filename}",
+            mime="image/jpeg",
+             key=f"download_{filename}_{idx}"  # Add unique key
+        )
+        else:
+            st.info("Translation in progress...")
+
+
+def create_download_zip(file_paths):
+    """Create a ZIP file with all translated files."""
+    temp_zip = tempfile.NamedTemporaryFile(delete=False, suffix='.zip')
+    
+    with zipfile.ZipFile(temp_zip.name, 'w') as zf:
+        for file_path in file_paths:
+            if file_path and os.path.exists(file_path):
+                arcname = Path(file_path).name
+                zf.write(file_path, arcname)
+    
+    return temp_zip.name
+
+
+# Header with visual translation emphasis
+st.title("🌍 Universal Translator v1.5 - Visual Translation")
 header_text = (
-    "**Translate documents from Chinese, Japanese, "
-    "Korean, and Hindi to English**"
+    "**Translate text IN images and PDFs from Chinese, Japanese, "
+    "Korean, and Hindi to English**\n\n"
+    "🎨 **NEW: Visual translation replaces text directly in images!**"
 )
 st.markdown(header_text)
 st.markdown("---")
@@ -109,6 +167,12 @@ if not TRANSLATOR_READY:
         "⚠️ Translator components not loaded. "
         "Please check translator_integration.py"
     )
+else:
+    # Check if visual translation is available
+    if hasattr(translator_service, 'image_translator') and translator_service.image_translator:
+        st.success("✅ Visual Translation System Active - Text will be replaced in images!")
+    else:
+        st.warning("⚠️ Visual translation not available - Text extraction mode only")
 
 # Sidebar
 with st.sidebar:
@@ -125,28 +189,36 @@ with st.sidebar:
     output_format = st.selectbox(
         "Output Format",
         OUTPUT_FORMATS,
-        help="Choose your preferred output format"
+        help="Visual: Replace text in images\nText: Extract text only"
     )
     
     # Processing options
     st.subheader("📋 Processing Options")
-    include_original = st.checkbox(
-        "Include original text",
-        value=True
+    show_original = st.checkbox(
+        "Show original images",
+        value=True,
+        help="Display original images alongside translations"
     )
-    create_report = st.checkbox(
-        "Generate processing report",
-        value=False
+    
+    save_intermediates = st.checkbox(
+        "Save intermediate steps",
+        value=False,
+        help="Save cleaned images before text addition"
     )
     
     # Info section
     st.markdown("---")
+    st.subheader("📚 How It Works")
     info_text = (
-        "**Supported Files:**\n"
-        "• Images (JPG, PNG)\n"
-        "• PDFs\n"
-        "• Text files\n"
-        "• ZIP archives"
+        "**Visual Translation Process:**\n"
+        "1. 🔍 Detect text locations\n"
+        "2. 🌐 Translate to English\n"
+        "3. 🎨 Remove original text\n"
+        "4. ✍️ Add English text\n\n"
+        "**Supported:**\n"
+        "• Images → New images\n"
+        "• PDFs → New PDFs\n"
+        "• ZIPs → New ZIPs"
     )
     st.info(info_text)
     
@@ -155,27 +227,37 @@ with st.sidebar:
     processed_count = len(st.session_state.processed_files)
     st.metric("Files Processed", processed_count)
     
-    # Translator status indicator
+    # System status
     st.markdown("---")
     if TRANSLATOR_READY:
-        st.success("✅ Translator Ready")
+        if hasattr(translator_service, 'image_translator') and translator_service.image_translator:
+            st.success("✅ Visual Mode Ready")
+        else:
+            st.warning("⚠️ Text Mode Only")
     else:
-        st.error("❌ Translator Not Loaded")
+        st.error("❌ System Not Ready")
 
 # Main content area - using tabs
-tabs = ["📤 Upload", "📝 Process", "📊 Results", "📜 History"]
-tab1, tab2, tab3, tab4 = st.tabs(tabs)
+tabs = ["📤 Upload", "🎨 Process", "🖼️ Visual Results", "📊 Text Results", "📜 History"]
+tab1, tab2, tab3, tab4, tab5 = st.tabs(tabs)
 
 # Upload tab
 with tab1:
-    st.header("Upload Files")
+    st.header("Upload Files for Visual Translation")
+    
+    # Show sample before/after if available
+    col1, col2 = st.columns(2)
+    with col1:
+        st.info("📥 **Upload files with foreign text**")
+    with col2:
+        st.success("📤 **Get images with English text!**")
     
     # File uploader
     uploaded_files = st.file_uploader(
-        "Choose files to translate",
+        "Choose files to translate visually",
         type=SUPPORTED_TYPES,
         accept_multiple_files=True,
-        help="Upload one or more files for translation"
+        help="Upload images/PDFs with Chinese, Japanese, Korean, or Hindi text"
     )
     
     if uploaded_files:
@@ -193,38 +275,52 @@ with tab1:
                 st.write(f"{icon} {file.name} ({size_str})")
         
         with col2:
-            st.subheader("📊 Summary:")
+            st.subheader("📊 Processing Info:")
             st.write(f"**Total files:** {file_count}")
             
-            total_bytes = sum(f.size for f in uploaded_files)
-            total_mb = total_bytes / (1024 * 1024)
-            st.write(f"**Total size:** {total_mb:.2f} MB")
+            # Count file types
+            image_count = sum(1 for f in uploaded_files if f.name.lower().endswith(('.jpg', '.jpeg', '.png')))
+            pdf_count = sum(1 for f in uploaded_files if f.name.lower().endswith('.pdf'))
             
-            # Estimate processing time
-            est_seconds = file_count * 3
-            st.write(f"**Estimated time:** {est_seconds} seconds")
+            if image_count > 0:
+                st.write(f"🖼️ Images: {image_count} (will be visually translated)")
+            if pdf_count > 0:
+                st.write(f"📄 PDFs: {pdf_count} (will be visually translated)")
+            
+            # Estimate time
+            est_seconds = image_count * 5 + pdf_count * 15
+            st.write(f"⏱️ Estimated time: {est_seconds} seconds")
 
 # Process tab
 with tab2:
-    st.header("Process Files")
+    st.header("🎨 Visual Translation Processing")
     
     if not TRANSLATOR_READY:
-        st.error(
-            "❌ Translator not initialized. "
-            "Check console for errors."
-        )
+        st.error("❌ Translator not initialized. Check console for errors.")
     elif uploaded_files:
+        
+        # Show processing info
+        st.info(
+            "**Visual Translation will:**\n"
+            "• Detect text in your images\n"
+            "• Translate to English\n"
+            "• Replace text visually in the image\n"
+            "• Return new images/PDFs with English text"
+        )
+        
         # Process button
-        if st.button("🚀 Start Translation", key="process_btn"):
+        if st.button("🚀 Start Visual Translation", key="process_btn"):
             
             # Create progress indicators
             progress_bar = st.progress(0)
             status_text = st.empty()
             results_container = st.container()
             
-            with st.spinner("Initializing translator..."):
-                status_msg = "Loading translation modules..."
-                status_text.text(status_msg)
+            with st.spinner("Initializing visual translation system..."):
+                status_text.text("Loading translation models...")
+                
+                # Clear previous results
+                st.session_state.translated_files_paths = []
                 
                 # Process files
                 total_files = len(uploaded_files)
@@ -236,10 +332,7 @@ with tab2:
                     progress = (idx + 1) / total_files
                     progress_bar.progress(progress)
                     
-                    msg = (
-                        f"Processing {file.name}... "
-                        f"({idx+1}/{total_files})"
-                    )
+                    msg = f"🎨 Visually translating {file.name}... ({idx+1}/{total_files})"
                     status_text.text(msg)
                     
                     # Save uploaded file temporarily
@@ -250,37 +343,39 @@ with tab2:
                         with open(temp_path, 'wb') as f:
                             f.write(file.getvalue())
                         
-                        # Call REAL translator
+                        # Call visual translator
                         if TRANSLATOR_READY:
                             trans_result = translator_service.translate_file(
                                 str(temp_path),
                                 source_language
                             )
                             
+                            # Store result with paths
                             result = {
                                 'filename': file.name,
-                                'status': trans_result.get(
-                                    'status', 'error'
-                                ),
-                                'original': trans_result.get(
-                                    'original', 'No text extracted'
-                                ),
-                                'translated': trans_result.get(
-                                    'translated', 'Translation pending'
-                                ),
-                                'method': trans_result.get(
-                                    'method', 'Unknown'
-                                ),
+                                'status': trans_result.get('status', 'error'),
+                                'original_path': str(temp_path),
+                                'translated_path': trans_result.get('output_path'),
+                                'original': trans_result.get('original', 'Processing...'),
+                                'translated': trans_result.get('translated', 'Visual translation'),
+                                'method': trans_result.get('method', 'Visual'),
+                                'file_type': trans_result.get('file_type', 'unknown'),
                                 'timestamp': datetime.now().isoformat()
                             }
+                            
+                            # Keep track of translated file paths
+                            if result['translated_path']:
+                                st.session_state.translated_files_paths.append(result['translated_path'])
                         else:
-                            # Fallback if translator not ready
                             result = {
                                 'filename': file.name,
                                 'status': 'error',
+                                'original_path': str(temp_path),
+                                'translated_path': None,
                                 'original': 'Translator not available',
                                 'translated': 'Please check setup',
                                 'method': 'None',
+                                'file_type': 'unknown',
                                 'timestamp': datetime.now().isoformat()
                             }
                         
@@ -291,315 +386,164 @@ with tab2:
                         error_result = {
                             'filename': file.name,
                             'status': 'error',
+                            'original_path': None,
+                            'translated_path': None,
                             'original': f'Error: {str(e)}',
                             'translated': 'Processing failed',
                             'method': 'Error',
+                            'file_type': 'unknown',
                             'timestamp': datetime.now().isoformat()
                         }
                         errors.append(error_result)
-                        st.session_state.processed_files.append(
-                            error_result
-                        )
-                    
-                    finally:
-                        # Clean up temp file
-                        try:
-                            if temp_path.exists():
-                                temp_path.unlink()
-                            if Path(temp_dir).exists():
-                                Path(temp_dir).rmdir()
-                        except:
-                            pass
+                        st.session_state.processed_files.append(error_result)
                 
                 # Complete
                 progress_bar.progress(1.0)
                 
-                # Clean up translator temp files
-                if TRANSLATOR_READY:
-                    try:
-                        translator_service.cleanup()
-                    except:
-                        pass
-                
                 if errors:
-                    status_text.text(
-                        f"⚠️ Completed with {len(errors)} errors"
-                    )
+                    status_text.text(f"⚠️ Completed with {len(errors)} errors")
                 else:
-                    status_text.text("✅ Translation complete!")
+                    status_text.text("✅ Visual translation complete!")
                 
                 # Show results summary
                 with results_container:
-                    if processed:
-                        success_count = len([
-                            p for p in processed 
-                            if p['status'] == 'success'
-                        ])
-                        msg = (
-                            f"🎉 Processed {len(processed)} files "
-                            f"({success_count} successful)"
-                        )
-                        st.success(msg)
+                    st.success(f"🎉 Processed {len(processed)} files!")
                     
-                    if errors:
-                        st.error(f"❌ {len(errors)} files failed")
+                    # Quick stats
+                    col1, col2, col3 = st.columns(3)
                     
-                    # Quick preview of first successful result
-                    successful = [
-                        p for p in processed 
-                        if p['status'] == 'success'
-                    ]
-                    if successful:
-                        st.subheader("Preview (First Success):")
-                        first = successful[0]
-                        
-                        # Show method used
-                        st.caption(
-                            f"Method: {first.get('method', 'OCR')}"
-                        )
-                        
-                        col1, col2 = st.columns(2)
-                        
-                        with col1:
-                            st.text_area(
-                                "Original:",
-                                first['original'][:500],
-                                height=150,
-                                key="preview_orig"
-                            )
-                        
-                        with col2:
-                            st.text_area(
-                                "Translation:",
-                                first['translated'][:500],
-                                height=150,
-                                key="preview_trans"
-                            )
+                    with col1:
+                        success_count = len([p for p in processed if p['status'] == 'success'])
+                        st.metric("Successful", success_count)
+                    
+                    with col2:
+                        images_translated = len([p for p in processed if p['file_type'] == 'image'])
+                        st.metric("Images Translated", images_translated)
+                    
+                    with col3:
+                        if st.session_state.translated_files_paths:
+                            st.metric("Files Ready", len(st.session_state.translated_files_paths))
+                    
+                    st.info("👉 Go to 'Visual Results' tab to see and download your translated images!")
     else:
-        warning_msg = "⚠️ Please upload files in the Upload tab first"
-        st.warning(warning_msg)
+        st.warning("⚠️ Please upload files in the Upload tab first")
 
-# Results tab - WITH WORKING DOWNLOADS
+# Visual Results tab - NEW!
 with tab3:
-    st.header("Translation Results")
+    st.header("🖼️ Visual Translation Results")
     
     if st.session_state.processed_files:
-        # Download section
-        st.subheader("📥 Download Results")
+        # Filter for visual results (images and PDFs)
+        visual_results = [
+            r for r in st.session_state.processed_files 
+            if r.get('translated_path') and r['file_type'] in ['image', 'pdf', 'zip']
+        ]
         
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            if st.button("💾 Download All (ZIP)", key="download_zip"):
-                with st.spinner("Creating ZIP file..."):
-                    try:
-                        # Create ZIP filename
-                        zip_filename = f"translations_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
-                        
-                        # Create temporary ZIP file
-                        with tempfile.NamedTemporaryFile(delete=False, suffix='.zip') as tmp_zip:
-                            with zipfile.ZipFile(tmp_zip.name, 'w') as zf:
-                                # Add each result as a text file
-                                for idx, result in enumerate(st.session_state.processed_files):
-                                    # Create filename
-                                    base_name = Path(result['filename']).stem
-                                    txt_name = f"{base_name}_translated.txt"
-                                    
-                                    # Create content
-                                    content = f"File: {result['filename']}\n"
-                                    content += f"Status: {result['status']}\n"
-                                    content += f"Method: {result.get('method', 'N/A')}\n"
-                                    content += "="*50 + "\n\n"
-                                    content += "ORIGINAL:\n"
-                                    content += result['original'] + "\n\n"
-                                    content += "TRANSLATION:\n"
-                                    content += result['translated'] + "\n"
-                                    
-                                    # Add to ZIP
-                                    zf.writestr(txt_name, content)
-                                
-                                # Add summary file
-                                summary = {
-                                    'total_files': len(st.session_state.processed_files),
-                                    'timestamp': datetime.now().isoformat(),
-                                    'results': [
-                                        {
-                                            'file': r['filename'],
-                                            'status': r['status']
-                                        } for r in st.session_state.processed_files
-                                    ]
-                                }
-                                zf.writestr('summary.json', json.dumps(summary, indent=2))
-                            
-                            # Read ZIP file
-                            tmp_zip.seek(0)
-                            with open(tmp_zip.name, 'rb') as f:
+        if visual_results:
+            # Download all button
+            if st.session_state.translated_files_paths:
+                st.subheader("📥 Download All Results")
+                
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    # Create ZIP of all translated files
+                    if st.button("💾 Download All as ZIP"):
+                        with st.spinner("Creating ZIP..."):
+                            zip_path = create_download_zip(st.session_state.translated_files_paths)
+                            with open(zip_path, 'rb') as f:
                                 zip_data = f.read()
                             
-                            # Offer download
                             st.download_button(
                                 label="📥 Download ZIP",
                                 data=zip_data,
-                                file_name=zip_filename,
+                                file_name=f"translated_all_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip",
                                 mime="application/zip"
                             )
-                            st.success("✅ ZIP file ready!")
-                            
-                    except Exception as e:
-                        st.error(f"Failed to create ZIP: {str(e)}")
-        
-        with col2:
-            if st.button("📄 Download PDF Report", key="download_pdf"):
-                with st.spinner("Generating PDF..."):
-                    try:
-                        if REPORTLAB_AVAILABLE:
-                            # Create PDF with reportlab
-                            with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_pdf:
-                                c = canvas.Canvas(tmp_pdf.name, pagesize=letter)
-                                
-                                # Add title
-                                c.setFont("Helvetica-Bold", 16)
-                                c.drawString(50, 750, "Translation Report")
-                                c.setFont("Helvetica", 10)
-                                c.drawString(50, 730, f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
-                                
-                                # Add results
-                                y_position = 700
-                                for idx, result in enumerate(st.session_state.processed_files[:10]):  # First 10
-                                    if y_position < 100:  # New page if needed
-                                        c.showPage()
-                                        y_position = 750
-                                    
-                                    c.setFont("Helvetica-Bold", 12)
-                                    c.drawString(50, y_position, f"File: {result['filename']}")
-                                    y_position -= 20
-                                    
-                                    c.setFont("Helvetica", 10)
-                                    # Status
-                                    status_text = f"Status: {result['status']}"
-                                    c.drawString(50, y_position, status_text)
-                                    y_position -= 20
-                                    
-                                    # Original (truncated)
-                                    c.drawString(50, y_position, "Original:")
-                                    y_position -= 15
-                                    original_text = result['original'][:100] + "..."
-                                    c.drawString(70, y_position, original_text[:80])
-                                    y_position -= 20
-                                    
-                                    # Translation (truncated)
-                                    c.drawString(50, y_position, "Translation:")
-                                    y_position -= 15
-                                    trans_text = result['translated'][:100] + "..."
-                                    c.drawString(70, y_position, trans_text[:80])
-                                    y_position -= 30
-                                
-                                c.save()
-                                
-                                # Read PDF
-                                with open(tmp_pdf.name, 'rb') as f:
-                                    pdf_data = f.read()
-                                
-                                # Offer download
-                                st.download_button(
-                                    label="📥 Download PDF Report",
-                                    data=pdf_data,
-                                    file_name=f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
-                                    mime="application/pdf"
-                                )
-                                st.success("✅ PDF report ready!")
-                        else:
-                            st.error("PDF generation requires reportlab. Install with: pip install reportlab")
-                            
-                    except Exception as e:
-                        st.error(f"Failed to create PDF: {str(e)}")
-        
-        with col3:
-            if st.button("📝 Download Text", key="download_txt"):
-                # Create text content
-                text_content = "TRANSLATION RESULTS\n"
-                text_content += "="*50 + "\n\n"
+                            os.unlink(zip_path)
                 
-                for result in st.session_state.processed_files:
-                    text_content += f"File: {result['filename']}\n"
-                    text_content += f"Status: {result['status']}\n"
-                    text_content += f"Method: {result.get('method', 'N/A')}\n"
-                    text_content += "-"*30 + "\n"
-                    text_content += "Original:\n"
-                    text_content += result['original'][:500] + "\n\n"
-                    text_content += "Translation:\n"
-                    text_content += result['translated'][:500] + "\n"
-                    text_content += "="*50 + "\n\n"
-                
-                st.download_button(
-                    label="📥 Download Text File",
-                    data=text_content,
-                    file_name=f"translations_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
-                    mime="text/plain"
-                )
-                st.success("✅ Text file ready!")
-        
-        st.markdown("---")
-        
-        # Results details
-        st.subheader("📋 Detailed Results")
-        
-        # Filter options
-        show_status = st.selectbox(
-            "Filter by status:",
-            ["All", "Success", "Error"],
-            key="filter_status"
-        )
-        
-        # Filter results
-        if show_status == "Success":
-            filtered = [
-                r for r in st.session_state.processed_files 
-                if r['status'] == 'success'
-            ]
-        elif show_status == "Error":
-            filtered = [
-                r for r in st.session_state.processed_files 
-                if r['status'] == 'error'
-            ]
-        else:
-            filtered = st.session_state.processed_files
-        
-        # Display filtered results
-        for idx, result in enumerate(filtered):
-            status_icon = "✅" if result['status'] == 'success' else "❌"
-            label = (
-                f"{status_icon} {result['filename']} - "
-                f"{result['status'].upper()}"
-            )
+                st.markdown("---")
             
-            with st.expander(label):
-                # Show method if available
-                if 'method' in result:
-                    st.caption(f"Processing method: {result['method']}")
-                
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    st.write("**Original Text:**")
-                    st.text(result['original'][:500])
-                
-                with col2:
-                    st.write("**Translated Text:**")
-                    st.text(result['translated'][:500])
-                
-                caption = f"Processed at: {result['timestamp']}"
-                st.caption(caption)
+            # Display each result
+            st.subheader("🎨 Individual Results")
+            
+            for idx, result in enumerate(visual_results):
+                with st.expander(f"{get_file_icon(result['filename'])} {result['filename']}", expanded=(idx == 0)):
+                    
+                    if result['file_type'] == 'image':
+                        # Show image comparison
+                        display_image_comparison(
+                            result.get('original_path'),
+                            result.get('translated_path'),
+                            result['filename']
+                        )
+                        
+                    elif result['file_type'] == 'pdf':
+                        st.info(f"📄 PDF translated: {result['filename']}")
+                        st.write(f"Method: {result['method']}")
+                        
+                        # Download button for PDF
+                        if result['translated_path'] and os.path.exists(result['translated_path']):
+                            with open(result['translated_path'], 'rb') as f:
+                                pdf_data = f.read()
+                            st.download_button(
+                                label=f"💾 Download Translated PDF",
+                                data=pdf_data,
+                                file_name=f"translated_{result['filename']}",
+                                mime="application/pdf"
+                            )
+                    
+                    elif result['file_type'] == 'zip':
+                        st.info(f"📦 ZIP translated: {result['filename']}")
+                        st.write(f"Method: {result['method']}")
+                        
+                        # Download button for ZIP
+                        if result['translated_path'] and os.path.exists(result['translated_path']):
+                            with open(result['translated_path'], 'rb') as f:
+                                zip_data = f.read()
+                            st.download_button(
+                                label=f"💾 Download Translated ZIP",
+                                data=zip_data,
+                                file_name=f"translated_{result['filename']}",
+                                mime="application/zip"
+                            )
+        else:
+            st.info("No visual translation results yet. Process some images or PDFs first!")
     else:
-        info_msg = (
-            "📭 No results yet. "
-            "Process some files to see results here!"
-        )
-        st.info(info_msg)
+        st.info("📭 No results yet. Process some files to see visual translations here!")
+
+# Text Results tab (original functionality)
+with tab4:
+    st.header("📝 Text Extraction Results")
+    
+    if st.session_state.processed_files:
+        # Show text results
+        for result in st.session_state.processed_files:
+            if result['status'] == 'success':
+                with st.expander(f"{result['filename']} - {result['method']}"):
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        st.text_area(
+                            "Original Text:",
+                            result['original'][:500],
+                            height=150,
+                            key=f"orig_{result['filename']}"
+                        )
+                    
+                    with col2:
+                        st.text_area(
+                            "Translated Text:",
+                            result['translated'][:500],
+                            height=150,
+                            key=f"trans_{result['filename']}"
+                        )
+    else:
+        st.info("📭 No text results yet")
 
 # History tab
-with tab4:
-    st.header("Translation History")
+with tab5:
+    st.header("📜 Translation History")
     
     if st.session_state.processed_files:
         # Summary stats
@@ -608,66 +552,51 @@ with tab4:
         files = st.session_state.processed_files
         
         with col1:
-            st.metric("Total Translations", len(files))
+            st.metric("Total Processed", len(files))
         
         with col2:
+            visual_count = len([f for f in files if f.get('translated_path')])
+            st.metric("Visual Translations", visual_count)
+        
+        with col3:
             success = sum(1 for f in files if f['status'] == 'success')
             st.metric("Successful", success)
         
-        with col3:
+        with col4:
             errors = sum(1 for f in files if f['status'] == 'error')
             st.metric("Errors", errors)
         
-        with col4:
-            # Get unique dates
-            dates = set(
-                f['timestamp'].split('T')[0]
-                for f in files
-            )
-            st.metric("Active Days", len(dates))
-        
-        st.markdown("---")
-        
-        # History table
-        st.subheader("📜 Recent Translations")
-        
-        # Create table data
-        history_data = []
-        recent = st.session_state.processed_files[-10:]
-        
-        for file in recent:
-            status_icon = "✅" if file['status'] == 'success' else "❌"
-            history_data.append({
-                "File": file['filename'],
-                "Status": f"{status_icon} {file['status']}",
-                "Method": file.get('method', 'N/A'),
-                "Time": file['timestamp'].split('T')[0]
-            })
-        
-        st.table(history_data)
-        
         # Clear history button
         if st.button("🗑️ Clear History", key="clear_history"):
+            # Clean up translated files
+            for file_path in st.session_state.translated_files_paths:
+                try:
+                    if os.path.exists(file_path):
+                        os.remove(file_path)
+                except:
+                    pass
+            
+            # Clear session state
             st.session_state.processed_files = []
             st.session_state.translation_history = []
+            st.session_state.translated_files_paths = []
+            
+            # Clean up translator temp files
+            if TRANSLATOR_READY:
+                translator_service.cleanup()
+            
             st.rerun()
     else:
-        st.info("📭 No translation history yet")
+        st.info("📭 No history yet")
 
 # Footer
 st.markdown("---")
-footer_lines = [
-    "<div style='text-align: center'>",
-    "<p>Universal Translator v1.5 | Built with ❤️ by Victor</p>",
-    "<p style='font-size: 0.8em'>",
-    "Supports: Chinese, Japanese, Korean, Hindi → English",
-    "</p>",
-    "</div>"
-]
-footer_html = "".join(footer_lines)
+footer_html = """
+<div style='text-align: center'>
+    <p><strong>Universal Translator v1.5 - Visual Translation</strong></p>
+    <p>🎨 Now with visual text replacement in images!</p>
+    <p style='font-size: 0.9em'>Translates: Chinese, Japanese, Korean, Hindi → English</p>
+    <p style='font-size: 0.8em'>Built with ❤️ by Victor</p>
+</div>
+"""
 st.markdown(footer_html, unsafe_allow_html=True)
-
-# Show debug info in sidebar if translator not ready
-if not TRANSLATOR_READY:
-    with st.sidebar:
-        st.error("Debug: Check console for import errors")
