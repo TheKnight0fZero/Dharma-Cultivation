@@ -21,6 +21,28 @@ Reduced manual translation time by 90% (from 5 hours to 30 minutes for 100-page 
 - Reduced processing time by 30% through optimization
 ## 📊 Version History
 
+V 1.5 summary
+
+Current Status:
+
+✅ Working: Text detection (4/4 regions found), translation accuracy, file processing, UI
+❌ Failing: Visual quality - original text not fully removed, English overlaying instead of replacing
+
+Technical Issue:
+
+OpenCV inpainting not removing text effectively. Result: English text overlaps Chinese instead of replacing it. Only 1/4 text regions properly processed.
+
+Impact:
+
+System functional but output quality too poor for production use. Core pipeline works (90% complete) but visual results unacceptable (40% quality).
+
+Next Steps:
+
+Need alternative to OpenCV inpainting - either better removal algorithm or simpler overlay approach with solid backgrounds.
+
+Blocker: Text removal technology limitation
+
+
 ### v1.0 (Initial)
 - GUI implementation with tkinter
 - Basic OCR and translation
