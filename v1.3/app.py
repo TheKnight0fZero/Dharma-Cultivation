@@ -9,7 +9,7 @@ Developer: Victor
 
 import os
 import tempfile
-import zipfile
+# import zipfile # REMOVED: Redundant top-level import
 import json
 import base64
 from datetime import datetime
@@ -20,13 +20,8 @@ import streamlit as st
 from PIL import Image
 
 # Additional imports for downloads
-try:
-    from reportlab.lib.pagesizes import letter
-    from reportlab.pdfgen import canvas
-    REPORTLAB_AVAILABLE = True
-except ImportError:
-    REPORTLAB_AVAILABLE = False
-    print("⚠️ ReportLab not available for PDF generation")
+# REMOVED: reportlab availability check, as app.py doesn't directly use it for UI logic.
+# The backend translator_integration.py handles its own reportlab dependencies.
 
 # Import translator service
 try:
@@ -37,10 +32,10 @@ except ImportError as e:
     print(f"⚠️ Translator not available: {e}")
 
 # Constants
-MAX_LINE_LENGTH = 79
+# MAX_LINE_LENGTH = 79 # REMOVED: Unused constant
 SUPPORTED_TYPES = ['jpg', 'jpeg', 'png', 'pdf', 'txt', 'zip']
 LANGUAGES = ["Auto-detect", "Chinese", "Japanese", "Korean", "Hindi"]
-OUTPUT_FORMATS = ["Visual (Images/PDF)", "Text Only", "Both"]
+OUTPUT_FORMATS = ["Visual (Images/PDF)", "Text Only", "Both"] # This constant is now unused, but kept for context if output_format is re-added
 
 # Page configuration
 st.set_page_config(
@@ -79,8 +74,8 @@ st.markdown(css_style, unsafe_allow_html=True)
 # Initialize session state
 if 'processed_files' not in st.session_state:
     st.session_state.processed_files = []
-if 'translation_history' not in st.session_state:
-    st.session_state.translation_history = []
+# if 'translation_history' not in st.session_state: # REMOVED: Unused session state variable
+#     st.session_state.translation_history = []
 if 'translated_files_paths' not in st.session_state:
     st.session_state.translated_files_paths = []
 
@@ -106,7 +101,8 @@ def format_file_size(size_bytes):
     return f"{size_kb:.2f} KB"
 
 
-def display_image_comparison(original_path, translated_path, filename):
+# --- CHANGE 3: Modified function signature to accept idx ---
+def display_image_comparison(original_path, translated_path, filename, idx):
     """Display original and translated images side by side."""
     col1, col2 = st.columns(2)
     
@@ -132,7 +128,7 @@ def display_image_comparison(original_path, translated_path, filename):
             data=img_data,
             file_name=f"translated_{filename}",
             mime="image/jpeg",
-             key=f"download_{filename}_{idx}"  # Add unique key
+             key=f"download_{filename}_{idx}"  # --- CHANGE 3: Used idx in key ---
         )
         else:
             st.info("Translation in progress...")
@@ -140,6 +136,7 @@ def display_image_comparison(original_path, translated_path, filename):
 
 def create_download_zip(file_paths):
     """Create a ZIP file with all translated files."""
+    import zipfile # Local import is kept here, making top-level import redundant
     temp_zip = tempfile.NamedTemporaryFile(delete=False, suffix='.zip')
     
     with zipfile.ZipFile(temp_zip.name, 'w') as zf:
@@ -185,12 +182,12 @@ with st.sidebar:
         help="Select source language or auto-detect"
     )
     
-    # Output format
-    output_format = st.selectbox(
-        "Output Format",
-        OUTPUT_FORMATS,
-        help="Visual: Replace text in images\nText: Extract text only"
-    )
+    # REMOVED: output_format selectbox as its functionality was not yet implemented in the backend
+    # output_format = st.selectbox(
+    #     "Output Format",
+    #     OUTPUT_FORMATS,
+    #     help="Visual: Replace text in images\nText: Extract text only"
+    # )
     
     # Processing options
     st.subheader("📋 Processing Options")
@@ -200,11 +197,12 @@ with st.sidebar:
         help="Display original images alongside translations"
     )
     
-    save_intermediates = st.checkbox(
-        "Save intermediate steps",
-        value=False,
-        help="Save cleaned images before text addition"
-    )
+    # REMOVED: save_intermediates checkbox as it was unused
+    # save_intermediates = st.checkbox(
+    #     "Save intermediate steps",
+    #     value=False,
+    #     help="Save cleaned images before text addition"
+    # )
     
     # Info section
     st.markdown("---")
@@ -287,9 +285,9 @@ with tab1:
             if pdf_count > 0:
                 st.write(f"📄 PDFs: {pdf_count} (will be visually translated)")
             
-            # Estimate time
-            est_seconds = image_count * 5 + pdf_count * 15
-            st.write(f"⏱️ Estimated time: {est_seconds} seconds")
+            # REMOVED: Estimated time calculation and display
+            # est_seconds = image_count * 5 + pdf_count * 15
+            # st.write(f"⏱️ Estimated time: {est_seconds} seconds")
 
 # Process tab
 with tab2:
@@ -305,7 +303,8 @@ with tab2:
             "• Detect text in your images\n"
             "• Translate to English\n"
             "• Replace text visually in the image\n"
-            "• Return new images/PDFs with English text"
+            "• Return new images/PDFs with English text\n\n"
+            "*(Note: For images with transparent backgrounds, the output will have a white background.)*" # Added note
         )
         
         # Process button
@@ -472,10 +471,12 @@ with tab3:
                     
                     if result['file_type'] == 'image':
                         # Show image comparison
+                        # --- CHANGE 3: Pass idx to display_image_comparison ---
                         display_image_comparison(
                             result.get('original_path'),
                             result.get('translated_path'),
-                            result['filename']
+                            result['filename'],
+                            idx # Passed idx here
                         )
                         
                     elif result['file_type'] == 'pdf':
@@ -490,7 +491,8 @@ with tab3:
                                 label=f"💾 Download Translated PDF",
                                 data=pdf_data,
                                 file_name=f"translated_{result['filename']}",
-                                mime="application/pdf"
+                                mime="application/pdf",
+                                key=f"download_pdf_{result['filename']}_{idx}" # Added unique key
                             )
                     
                     elif result['file_type'] == 'zip':
@@ -505,7 +507,8 @@ with tab3:
                                 label=f"💾 Download Translated ZIP",
                                 data=zip_data,
                                 file_name=f"translated_{result['filename']}",
-                                mime="application/zip"
+                                mime="application/zip",
+                                key=f"download_zip_{result['filename']}_{idx}" # Added unique key
                             )
         else:
             st.info("No visual translation results yet. Process some images or PDFs first!")
@@ -578,7 +581,7 @@ with tab5:
             
             # Clear session state
             st.session_state.processed_files = []
-            st.session_state.translation_history = []
+            # st.session_state.translation_history = [] # REMOVED: Unused
             st.session_state.translated_files_paths = []
             
             # Clean up translator temp files

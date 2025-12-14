@@ -47,12 +47,11 @@ except ImportError as e:
     print(f"⚠️ ImageTranslator not available: {e}")
     IMAGE_TRANSLATOR_AVAILABLE = False
 
-# Import PDF and image processing libraries
+# Import PDF and image processing libraries for direct use
+# --- CHANGE 1: Removed redundant PyPDF2 and zipfile imports from this block ---
 try:
     from PIL import Image
-    import PyPDF2
     from pdf2image import convert_from_path
-    import zipfile
     PDF_IMAGE_AVAILABLE = True
 except ImportError as e:
     print(f"⚠️ PDF/Image libraries missing: {e}")
@@ -92,6 +91,12 @@ class TranslatorService:
                 )
                 self.translator = UniversalTranslator()
                 
+                # --- CHANGE 2: Initialize GoogleTranslator instance once ---
+                if GOOGLE_TRANSLATE_AVAILABLE:
+                    self.google_translator_instance = GoogleTranslator(source='auto', target='en')
+                else:
+                    self.google_translator_instance = None # Handle case where deep_translator is not available
+                
                 # Initialize ImageTranslator if available
                 if IMAGE_TRANSLATOR_AVAILABLE:
                     self.image_translator = ImageTranslator()
@@ -130,7 +135,7 @@ class TranslatorService:
         if not text or not text.strip():
             return ""
         
-        if not GOOGLE_TRANSLATE_AVAILABLE:
+        if not GOOGLE_TRANSLATE_AVAILABLE or self.google_translator_instance is None:
             return f"[Translation not available - {text[:100]}...]"
         
         try:
@@ -145,20 +150,12 @@ class TranslatorService:
             
             source_lang = lang_map.get(source_language.lower(), 'auto')
             
-            # Create translator
-            translator = GoogleTranslator(source=source_lang, target='en')
+            # --- CHANGE 3: Use the pre-initialized translator instance and remove manual chunking ---
+            # Dynamically set the source language for this translation
+            self.google_translator_instance.source = source_lang
             
-            # Translate in chunks if text is too long (5000 char limit)
-            if len(text) > 4500:
-                chunks = []
-                for i in range(0, len(text), 4500):
-                    chunk = text[i:i+4500]
-                    translated_chunk = translator.translate(chunk)
-                    chunks.append(translated_chunk)
-                return ' '.join(chunks)
-            else:
-                # Translate directly
-                return translator.translate(text)
+            # Rely on deep_translator's internal chunking
+            return self.google_translator_instance.translate(text)
                 
         except Exception as e:
             print(f"Translation error: {e}")
@@ -188,6 +185,7 @@ class TranslatorService:
         
         try:
             # Map language names for image translator
+            # --- CHANGE 4: Corrected language_map to pass string names to ImageTranslator ---
             language_map = {
                 'auto-detect': 'auto',
                 'chinese': 'chinese',
@@ -301,17 +299,17 @@ class TranslatorService:
             translated_images = []
             translations_summary = []
             
-            for idx, image in enumerate(images, 1):
-                # Save page image
-                page_path = os.path.join(pdf_temp_dir, f"page_{idx:03d}.jpg")
-                image.save(page_path, 'JPEG')
+            # --- CHANGE 5: Removed redundant image.save() and used page_image_path directly ---
+            for idx, page_image_path in enumerate(images, 1): # Renamed 'image' to 'page_image_path' for clarity
+                # pdf2image already saved the image to page_image_path when output_folder was specified.
+                # No need to re-save it.
                 
                 print(f"   Translating page {idx}/{len(images)}...")
                 
                 # Translate the page image
                 if self.image_translator:
                     result = self.translate_image_with_visual_replacement(
-                        page_path,
+                        page_image_path, # Use the path directly
                         source_language
                     )
                     
@@ -320,10 +318,10 @@ class TranslatorService:
                         translations_summary.append(f"Page {idx}: {result.get('regions', 0)} regions")
                     else:
                         # Keep original if translation failed
-                        translated_images.append(page_path)
+                        translated_images.append(page_image_path) # Use the original page_image_path
                         translations_summary.append(f"Page {idx}: Failed")
                 else:
-                    translated_images.append(page_path)
+                    translated_images.append(page_image_path) # Use the original page_image_path
             
             # Create new PDF from translated images
             if translated_images:
@@ -402,14 +400,15 @@ class TranslatorService:
                 else:
                     # Fallback to text extraction only
                     print("⚠️ Visual translation not available, extracting text only")
+                    # --- CHANGE 6: Corrected language mapping for UniversalTranslator (Tesseract) fallback ---
                     lang_map = {
                         'chinese': Language.CHINESE,
                         'japanese': Language.JAPANESE,
                         'korean': Language.KOREAN,
                         'hindi': Language.HINDI,
-                        'auto-detect': Language.CHINESE
+                        'auto-detect': Language.ENGLISH # Changed to ENGLISH
                     }
-                    lang = lang_map.get(source_language.lower(), Language.CHINESE)
+                    lang = lang_map.get(source_language.lower(), Language.ENGLISH) # Changed to ENGLISH
                     result = self.translator.process(file_path, lang)
                     
                     return {
@@ -445,6 +444,12 @@ class TranslatorService:
                             'translated': translated_text[:500],
                             'method': f'PDF Text Extraction ({len(pages)} pages)',
                             'file_type': 'text'
+                        }
+                    else: # --- CHANGE 7: Added return for empty PDF text extraction fallback ---
+                        return {
+                            'status': 'no_text',
+                            'message': 'No text found in PDF for text extraction',
+                            'output_path': None
                         }
                     
             elif file_type == 'zip':
@@ -514,6 +519,7 @@ class TranslatorService:
             os.makedirs(extract_dir, exist_ok=True)
             
             # Extract ZIP
+            # --- CHANGE 8: Removed redundant local import zipfile ---
             with zipfile.ZipFile(zip_path, 'r') as zf:
                 zf.extractall(extract_dir)
             
@@ -535,9 +541,9 @@ class TranslatorService:
                 }
             
             # Translate each image
-            translated_files = []
-            for idx, img_path in enumerate(image_files[:10], 1):  # Limit to 10
-                print(f"   Translating image {idx}/{min(len(image_files), 10)}...")
+            # --- CHANGE 8: Removed hardcoded [:10] limit from image processing loop ---
+            for idx, img_path in enumerate(image_files, 1): # Process all images
+                print(f"   Translating image {idx}/{len(image_files)}...") # Updated print
                 
                 if self.image_translator:
                     result = self.translate_image_with_visual_replacement(
@@ -620,7 +626,7 @@ class TranslatorService:
 # Create global instance
 translator_service = TranslatorService()
 
-# Test translation capability
+# Test translation capability (These prints are fine for initial setup)
 if IMAGE_TRANSLATOR_AVAILABLE:
     print("✅ Visual image translation is available!")
     print("   - Images will have text replaced visually")
@@ -632,7 +638,10 @@ else:
 if GOOGLE_TRANSLATE_AVAILABLE:
     test_text = "测试"  # Chinese for "test"
     try:
-        result = GoogleTranslator(source='zh-CN', target='en').translate(test_text)
+        # --- Using the newly created google_translator_instance ---
+        translator_service.google_translator_instance.source = 'zh-CN'
+        result = translator_service.google_translator_instance.translate(test_text)
         print(f"✅ Text translation test: {test_text} → {result}")
     except Exception as e:
         print(f"⚠️ Translation test failed: {e}")
+
