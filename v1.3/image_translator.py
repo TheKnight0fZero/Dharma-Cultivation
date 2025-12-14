@@ -1,4 +1,4 @@
-# image_translator.py - Fix 4 with Universal Image Mode Support
+# image_translator.py
 """
 Image Translation Module for Universal Translator v1.5
 Simple overlay approach with smart image mode handling
@@ -39,7 +39,10 @@ class ImageTranslator:
         Args:
             cache_dir: Directory to cache EasyOCR models
         """
-        self.cache_dir = cache_dir or os.path.expanduser('~/.EasyOCR/')
+        # --- CHANGE 1: PEP 8 line length adjustment for cache_dir ---
+        self.cache_dir = (
+            cache_dir or os.path.expanduser('~/.EasyOCR/')
+        )
         self.readers = {}
         self.translator = None
         self.supported_languages = {
@@ -51,11 +54,13 @@ class ImageTranslator:
             'auto': ['en']
         }
         
+        # --- CHANGE 2: Added unicode_fallback font path for CJK support ---
         # Font settings
         self.font_paths = {
             'default': "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
             'bold': "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-            'fallback': "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"
+            'fallback': "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+            'unicode_fallback': "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc" # Path identified in Codespaces
         }
         
         # Initialize translator
@@ -270,12 +275,9 @@ class ImageTranslator:
             original_text = region['text']
             
             try:
-                # Skip if already English
-                if self._is_english(original_text):
-                    translated_text = original_text
-                else:
-                    # Translate to English
-                    translated_text = self.translator.translate(original_text)
+                # --- CHANGE 5: Removed _is_english check; rely on GoogleTranslator's auto-detection ---
+                # Translate to English (GoogleTranslator's source='auto' handles detection)
+                translated_text = self.translator.translate(original_text)
                 
                 # Create new region with translation
                 translated_region = region.copy()
@@ -316,8 +318,12 @@ class ImageTranslator:
         Returns:
             PIL Image with overlaid translations
         """
-        # Load the image
-        img = Image.open(image_path)
+        # --- CHANGE 3: Improved Resource Management with 'with open' ---
+        # Use 'with' to ensure the file handle is properly closed
+        with open(image_path, 'rb') as f:
+            img = Image.open(f)
+            img.load() # Force the image data to be loaded into memory immediately
+        
         original_mode = img.mode
         
         logger.info(f"Processing image with mode: {original_mode}")
@@ -432,14 +438,8 @@ class ImageTranslator:
         if original_mode == 'L' and draw_mode == 'L':
             logger.info("Keeping grayscale mode")
             return img  # Keep as grayscale
-        elif original_mode == 'P' and draw_mode == 'RGB':
-            # Try to convert back to palette if possible
-            try:
-                if len(img.getcolors(256)) <= 256:
-                    logger.info("Converting back to palette mode")
-                    return img.convert('P')
-            except:
-                pass
+        # --- CHANGE 4: Removed problematic palette conversion logic ---
+        # Removed: elif original_mode == 'P' and draw_mode == 'RGB': ...
         
         logger.info(f"Output mode: {img.mode}")
         return img
@@ -547,32 +547,27 @@ class ImageTranslator:
         Returns:
             PIL Font object
         """
-        for font_type in ['bold', 'default', 'fallback']:
+        # --- CHANGE 2: Added 'unicode_fallback' to the list of font types to try ---
+        for font_type in ['bold', 'default', 'fallback', 'unicode_fallback']:
             font_path = self.font_paths.get(font_type)
             if font_path and os.path.exists(font_path):
                 try:
                     return ImageFont.truetype(font_path, size)
                 except Exception as e:
+                    # Log a warning if a specific font fails to load, but keep trying others
                     logger.warning(f"Failed to load font {font_path}: {e}")
         
-        # Ultimate fallback
+        # --- CHANGE 2: Added logger.error for ultimate fallback ---
+        # Ultimate fallback: This will only be reached if ALL the fonts in the list above fail.
+        logger.error("All specified fonts failed to load. Falling back to default PIL font.")
         return ImageFont.load_default()
     
-    def _is_english(self, text: str) -> bool:
-        """
-        Check if text is already in English.
-        
-        Args:
-            text: Text to check
-            
-        Returns:
-            True if text appears to be English
-        """
-        if not text:
-            return True
-        
-        ascii_chars = sum(1 for c in text if ord(c) < 128)
-        return (ascii_chars / len(text)) > 0.8
+    # --- CHANGE 5: Removed _is_english method entirely ---
+    # def _is_english(self, text: str) -> bool:
+    #     """
+    #     Check if text is already in English.
+    #     ... (method content) ...
+    #     """
     
     def process_batch(
         self,
@@ -602,8 +597,8 @@ class ImageTranslator:
             # Generate output path
             if output_dir:
                 filename = Path(image_path).name
-                base = Path(filename).stem
-                ext = Path(filename).suffix
+                base = Path(image_path).stem
+                ext = Path(image_path).suffix
                 output_path = os.path.join(output_dir, f"{base}_translated{ext}")
             else:
                 output_path = None
