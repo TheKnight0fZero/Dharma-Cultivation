@@ -300,7 +300,7 @@ class Config:
         CHECK_ZIP_BOMBS = True  # Check for malicious ZIPs
         MAX_COMPRESSION_RATIO = 100  # Max compression ratio allowed
 
-    # ============= OUTPUT GENERATION SETTINGS =============
+        # ============= OUTPUT GENERATION SETTINGS =============
     class OutputGeneration:
         """Settings for final output generation"""
         # Output formats
@@ -360,6 +360,7 @@ class Config:
         if cls.Batch.SIZE_LIMIT <= 0:
             raise ValueError("BATCH_SIZE_LIMIT must be > 0")
 
+        # print("✅ Configuration validated successfully!") # Removed print
         return True
 
     @classmethod
@@ -368,9 +369,36 @@ class Config:
         if not cls.Debug.SHOW_CONFIG:
             return
 
+        # print("\n" + "="*50) # Removed print
+        # print("📋 CURRENT CONFIGURATION") # Removed print
+        # print("="*50) # Removed print
+
+        # print("\n🖼️ Image Processing:") # Removed print
+        # print(f"  • Scale Factor: {cls.Image.SCALE_FACTOR}x") # Removed print
+        # print(f"  • Contrast: {cls.Image.CONTRAST}") # Removed print
+        # print(f"  • Brightness: {cls.Image.BRIGHTNESS}") # Removed print
+
+        # print("\n📁 File Handling:") # Removed print
+        # print(f"  • Enhanced Prefix: '{cls.Files.ENHANCED_PREFIX}'") # Removed print
+        # print(f"  • Auto Cleanup: {cls.Files.AUTO_CLEANUP}") # Removed print
+
+        # print("\n🔍 Debug Settings:") # Removed print
+        # print(f"  • Verbose Output: {cls.Debug.VERBOSE}") # Removed print
+        # print(f"  • Save Enhanced Images: {cls.Debug.SAVE_ENHANCED}") # Removed print
+
+        # print("\n🚀 Future Features Status:") # Removed print
+        # print(f"  • Batch Processing: {'Ready' if cls.Batch.SIZE_LIMIT > 0 else 'Disabled'}") # Removed print
+        # print(f"  • Caching: {'Enabled' if cls.Cache.ENABLED else 'Disabled'}") # Removed print
+        # print(f"  • Error Retry: {cls.ErrorHandling.RETRY_COUNT} attempts") # Removed print
+        # print("="*50 + "\n") # Removed print
+
+
 try:
     Config.validate()
-except ValueError:
+    # Config.display() # Removed print
+except ValueError as e:
+    # print(f"❌ Configuration Error: {e}") # Removed print
+    # print("Please fix the configuration values above.") # Removed print
     pass # Let the importing module handle errors
 
 # Error Handling Utilities
@@ -414,9 +442,8 @@ class ErrorHandler:
                     # Exponential backoff
                     wait_time = retry_delay * (2 ** attempt)
                     if verbose:
-                        # print(f"   Retry {attempt + 1}/{retry_count} " # Removed print
-                        #       f"after {wait_time}s...") # Removed print
-                        pass
+                        print(f"   Retry {attempt + 1}/{retry_count} "
+                              f"after {wait_time}s...")
                     time.sleep(wait_time)
 
         # All retries failed - raise the last exception
@@ -473,10 +500,18 @@ class LanguageChecker:
         Returns:
             Tuple of (available_languages, missing_languages) dicts
         """
-        # Removed all print statements from here
+        # print("\n" + "="*50) # Removed print
+        # print("🔍 CHECKING LANGUAGE SUPPORT") # Removed print
+        # print("="*50) # Removed print
+
         if not installed_langs:
+            # print("❌ Tesseract not found or no languages installed") # Removed print
             missing_all = {lang: True for lang in supported_languages}
             return {}, missing_all
+
+        # print(f"✅ Tesseract found with {len(installed_langs)} " # Removed print
+        #       f"language packs") # Removed print
+        # print("\n📋 Language Pack Status:") # Removed print
 
         available = {}
         missing = {}
@@ -489,9 +524,18 @@ class LanguageChecker:
 
             if is_available:
                 available[lang] = True
+                # print(f"   ✅ {lang.name:10} ({lang.value:10}) " # Removed print
+                #       f"- Installed") # Removed print
             else:
                 missing[lang] = True
+                # print(f"   ❌ {lang.name:10} ({lang.value:10}) " # Removed print
+                #       f"- Not installed") # Removed print
 
+        if not missing:
+            # print("\n✅ All language packs are installed!") # Removed print
+            pass
+
+        # print("="*50) # Removed print
         return available, missing
 
 
@@ -713,6 +757,21 @@ class UniversalTranslator:
             self.available_languages = {}
             self.missing_languages = {}
 
+    # def _setup_complete(self) -> None: # Removed method
+    #     """Print initialization confirmation."""
+    #     if Config.Debug.VERBOSE:
+    #         print("\n✅ Universal Translator v1.3 initialized!")
+    #         langs = [l.name.lower() for l in self.supported_languages]
+    #         print(f"📚 Defined languages: {', '.join(langs)}")
+
+    #         if self.available_languages:
+    #             avail = [l.name.lower() for l in self.available_languages]
+    #             print(f"✅ Ready to use: {', '.join(avail)}")
+
+    #         if self.missing_languages:
+    #             miss = [l.name.lower() for l in self.missing_languages]
+    #             print(f"⚠️ Missing: {', '.join(miss)}")
+
     def enhance_image(self, image_path: str) -> str:
         """
         Enhance image quality for better OCR results.
@@ -750,6 +809,7 @@ class UniversalTranslator:
             )
 
             if Config.Debug.VERBOSE:
+                # print(f"✅ Image enhanced: {enhanced_path}") # Removed print
                 pass
 
             return enhanced_path
@@ -757,9 +817,13 @@ class UniversalTranslator:
         except Exception as e:
             self.error_count += 1
             if Config.Debug.DETAILED_ERRORS:
+                # print(f"❌ Error enhancing image: {e}") # Removed print
                 pass
 
             if Config.ErrorHandling.USE_FALLBACK:
+                if Config.Debug.VERBOSE:
+                    # print("⚠️ Using original image as fallback") # Removed print
+                    pass
                 return image_path
             raise
 
@@ -792,10 +856,13 @@ class UniversalTranslator:
         if language in self.missing_languages:
             msg = f"⚠️ {language.name} pack may not be installed"
             if Config.Debug.VERBOSE:
+                # print(msg) # Removed print
                 pass
             errors_encountered.append(msg)
 
         if Config.Debug.VERBOSE:
+            # print(f"🔍 Processing: {image_path}") # Removed print
+            # print(f"🌐 Language: {language.name.lower()}") # Removed print
             pass
 
         try:
@@ -837,6 +904,7 @@ class UniversalTranslator:
             if language != Language.ENGLISH and fixed_text:
                 try:
                     if Config.Debug.VERBOSE:
+                        # print("🌍 Translating to English...") # Removed print
                         pass
 
                     def _translate():
@@ -865,6 +933,7 @@ class UniversalTranslator:
                     pass
 
             if Config.Debug.VERBOSE:
+                # print("✅ Processing complete!") # Removed print
                 pass
 
             # Fix Errors 4-5: Correct return type
@@ -881,6 +950,7 @@ class UniversalTranslator:
         except Exception as e:
             self.error_count += 1
             if Config.Debug.DETAILED_ERRORS:
+                # print(f"❌ Critical error: {e}") # Removed print
                 pass
 
             if Config.ErrorHandling.USE_FALLBACK:
@@ -920,7 +990,10 @@ class FileHandler:
         self._setup_temp_directory()
 
         if self.verbose:
-            pass # Removed print statements
+            # print("📁 FileHandler initialized") # Removed print
+            # print(f"🔑 Session ID: {self.session_id}") # Removed print
+            # print(f"📂 Temp directory: {self.temp_dir}") # Removed print
+            pass
 
     def _generate_session_id(self) -> str:
         """
@@ -964,7 +1037,9 @@ class FileHandler:
         for category, extensions in Config.FileHandling.SUPPORTED_EXTENSIONS.items():
             if file_ext in extensions:
                 if self.verbose:
-                    pass # Removed print
+                    # print(f"🔍 Detected {category[:-1]} file: {file_ext}") # Removed print
+                    pass
+
                 # Map category names to simple types
                 if category == 'images':
                     return 'image'
@@ -977,7 +1052,8 @@ class FileHandler:
                     return 'zip'
 
         if self.verbose:
-            pass # Removed print
+            # print(f"⚠️ Unknown file type: {file_ext}") # Removed print
+            pass
         return 'unknown'
 
     def file_validator(
@@ -1026,6 +1102,7 @@ class FileHandler:
             # Try to open file to verify it's not corrupted
             if detected_type == 'image':
                 try:
+                    # from PIL import Image # Moved to top
                     img = Image.open(file_path)
                     img.verify()
                 except Exception as e:
@@ -1079,7 +1156,8 @@ class FileHandler:
         all_files = [f for f in all_files if f.is_file()]
 
         if self.verbose:
-            pass # Removed print
+            # print(f"📂 Found {len(all_files)} files in {input_directory}") # Removed print
+            pass
 
         # Process with progress bar
         for file_path in tqdm(all_files, desc="Validating files"):
@@ -1101,13 +1179,20 @@ class FileHandler:
 
         # Report results
         if self.verbose:
-            pass # Removed print
+            # print(f"\n✅ Valid files: {len(valid_files)}") # Removed print
+            # print(f"❌ Invalid/skipped files: {len(invalid_files)}") # Removed print
+
             if invalid_files and len(invalid_files) <= 5:
-                pass # Removed print
+                # print("\n⚠️ Invalid files:") # Removed print
+                for file_path, reason in invalid_files[:5]:
+                    # print(f"  - {Path(file_path).name}: {reason}") # Removed print
+                    pass
 
         # Check batch size limit
         if len(valid_files) > Config.FileHandling.MAX_BATCH_SIZE:
-            pass # Removed print
+            # print(f"⚠️ Found {len(valid_files)} files, limiting to " # Removed print
+            #       f"{Config.FileHandling.MAX_BATCH_SIZE}") # Removed print
+            pass
             valid_files = valid_files[:Config.FileHandling.MAX_BATCH_SIZE]
 
         self.processed_files = valid_files
@@ -1137,7 +1222,8 @@ class FileHandler:
             shutil.copy2(file_path, temp_path)
 
             if self.verbose:
-                pass # Removed print
+                # print(f"📋 Created temp file: {temp_path.name}") # Removed print
+                pass
 
             return str(temp_path)
 
@@ -1150,12 +1236,15 @@ class FileHandler:
                 try:
                     shutil.rmtree(self.temp_dir) # type: ignore
                     if self.verbose:
-                        pass # Removed print
-                except Exception:
+                        # print(f"🗑️ Cleaned up temp directory: {self.temp_dir}") # Removed print
+                        pass
+                except Exception as e:
+                    # print(f"⚠️ Could not clean temp files: {e}") # Removed print
                     pass
             else:
                 if self.verbose:
-                    pass # Removed print
+                    # print(f"📁 Temp files kept at: {self.temp_dir}") # Removed print
+                    pass
 
         return None
 
@@ -1261,9 +1350,14 @@ class PDFProcessor:
         self.poppler_available = self._check_poppler()
 
         if self.verbose:
-            pass # Removed print statements
+            # print("📄 PDFProcessor initialized") # Removed print
+            if self.file_handler:
+                # print(f"📁 Using FileHandler session: {self.file_handler.session_id}") # Removed print
+                pass
             if not self.poppler_available:
-                pass # Removed print statements
+                # print("⚠️ Poppler not found - PDF to image conversion disabled") # Removed print
+                # print("   Install with: sudo apt-get install poppler-utils") # Removed print
+                pass
 
     def _check_poppler(self) -> bool:
         """Check if poppler-utils is installed."""
@@ -1291,7 +1385,8 @@ class PDFProcessor:
         extracted_pages = []
 
         if self.verbose:
-            pass # Removed print statements
+            # print(f"📖 Extracting text from PDF using {method}...") # Removed print
+            pass
 
         try:
             if method == 'pdfplumber':
@@ -1305,7 +1400,9 @@ class PDFProcessor:
             self.processing_stats['extracted_chars'] = sum(len(p['text']) for p in extracted_pages)
 
             if self.verbose:
-                pass # Removed print statements
+                # print(f"✅ Extracted {self.processing_stats['extracted_chars']} characters " # Removed print
+                #       f"from {self.processing_stats['processed_pages']} pages") # Removed print
+                pass
 
             self.extracted_text = extracted_pages
             return extracted_pages
@@ -1314,7 +1411,8 @@ class PDFProcessor:
             error_msg = f"Text extraction failed: {str(e)}"
             self.processing_stats['errors'].append(error_msg)
             if self.verbose:
-                pass # Removed print statements
+                # print(f"❌ {error_msg}") # Removed print
+                pass
             raise
 
     def _extract_with_pypdf2(self, pdf_path: str) -> List[Dict[str, Any]]:
@@ -1326,7 +1424,8 @@ class PDFProcessor:
             total_pages = len(reader.pages)
 
             if self.verbose:
-                pass # Removed print statements
+                # print(f"📄 Processing {total_pages} pages with PyPDF2...") # Removed print
+                pass
 
             for page_num, page in enumerate(reader.pages, 1):
                 try:
@@ -1356,7 +1455,8 @@ class PDFProcessor:
             total_pages = len(pdf.pages)
 
             if self.verbose:
-                pass # Removed print statements
+                # print(f"📄 Processing {total_pages} pages with pdfplumber...") # Removed print
+                pass
 
             for page_num, page in enumerate(pdf.pages, 1):
                 try:
@@ -1395,7 +1495,9 @@ class PDFProcessor:
         # Check if poppler is available
         if not self.poppler_available:
             if self.verbose:
-                pass # Removed print statements
+                # print("⚠️ Poppler not installed - skipping image conversion") # Removed print
+                # print("   Install with: sudo apt-get install poppler-utils") # Removed print
+                pass
             return []
 
         # Use temp directory if no output specified
@@ -1409,7 +1511,8 @@ class PDFProcessor:
 
 
         if self.verbose:
-            pass # Removed print statements
+            # print(f"🖼️ Converting PDF to images (DPI: {Config.PDFProcessing.DPI})...") # Removed print
+            pass
 
         try:
             # Convert PDF to images
@@ -1417,7 +1520,7 @@ class PDFProcessor:
                 pdf_path,
                 dpi=Config.PDFProcessing.DPI,
                 fmt=Config.PDFProcessing.IMAGE_FORMAT,
-                grayscale=Config.PDFProcessing.GRAYCALE
+                grayscale=Config.PDFProcessing.GRAYSCALE
             )
 
             image_paths = []
@@ -1427,10 +1530,12 @@ class PDFProcessor:
                 image_paths.append(str(image_path))
 
                 if self.verbose and i % 5 == 0:
-                    pass # Removed print statements
+                    # print(f"  Converted {i}/{len(images)} pages...") # Removed print
+                    pass
 
             if self.verbose:
-                pass # Removed print statements
+                # print(f"✅ Converted {len(images)} pages to images") # Removed print
+                pass
 
             self.page_images = image_paths
             return image_paths
@@ -1439,7 +1544,9 @@ class PDFProcessor:
             error_msg = f"PDF to image conversion failed: {str(e)}"
             self.processing_stats['errors'].append(error_msg)
             if self.verbose:
-                pass # Removed print statements
+                # print(f"⚠️ {error_msg}") # Removed print
+                # print("   Continuing without image conversion...") # Removed print
+                pass
             return []
 
     def create_translated_pdf(
@@ -1462,7 +1569,8 @@ class PDFProcessor:
             Path to created PDF
         """
         if self.verbose:
-            pass # Removed print statements
+            # print("📝 Creating translated PDF...") # Removed print
+            pass
 
         try:
             # Create PDF document
@@ -1511,7 +1619,10 @@ class PDFProcessor:
             doc.build(story)
 
             if self.verbose:
-                pass # Removed print statements
+                # print(f"✅ Created PDF: {output_path}") # Removed print
+                # print(f"   Pages: {len(translations)}") # Removed print
+                # print(f"   Size: {os.path.getsize(output_path) / 1024:.1f} KB") # Removed print
+                pass
 
             return output_path
 
@@ -1519,7 +1630,8 @@ class PDFProcessor:
             error_msg = f"PDF creation failed: {str(e)}"
             self.processing_stats['errors'].append(error_msg)
             if self.verbose:
-                pass # Removed print statements
+                # print(f"❌ {error_msg}") # Removed print
+                pass
             raise
 
     def process_pdf_for_translation(
@@ -1538,7 +1650,8 @@ class PDFProcessor:
             Dictionary with extracted text and metadata
         """
         if self.verbose:
-            pass # Removed print statements
+            # print(f"🔄 Processing PDF: {Path(pdf_path).name}") # Removed print
+            pass
 
         result = {
             'source_file': pdf_path,
@@ -1560,10 +1673,12 @@ class PDFProcessor:
         # If too little text, might be scanned PDF needing OCR
         if avg_chars_per_page < 100 and extract_method != 'text':
             if self.verbose:
-                pass # Removed print statements
+                # print("⚠️ Low text density detected - PDF might be scanned") # Removed print
+                pass
 
             if self.poppler_available:
-                pass # Removed print statements
+                # print("🔄 Converting to images for OCR...") # Removed print
+                pass
                 try:
                     page_images = self.pdf_to_images(pdf_path)
                     if page_images:
@@ -1575,11 +1690,14 @@ class PDFProcessor:
                 except Exception as e:
                     result['method_used'] = 'text_extraction_fallback'
                     if self.verbose:
-                        pass # Removed print statements
+                        # print(f"ℹ️ Image conversion failed: {e}") # Removed print
+                        # print("   Using text extraction only") # Removed print
+                        pass
             else:
                 result['method_used'] = 'text_extraction_only'
                 if self.verbose:
-                    pass # Removed print statements
+                    # print("ℹ️ Poppler not available - using text extraction only") # Removed print
+                    pass
         else:
             result['method_used'] = 'text_extraction'
 
@@ -1588,9 +1706,12 @@ class PDFProcessor:
         result['stats'] = self.processing_stats.copy()
 
         if self.verbose:
-            pass # Removed print statements
+            # print("✅ PDF processing complete!") # Removed print
+            # print(f"   Method: {result['method_used']}") # Removed print
+            # print(f"   Pages: {result['total_pages']}") # Removed print
             if not result['needs_ocr']:
-                pass # Removed print statements
+                # print(f"   Characters: {total_chars}") # Removed print
+                pass
 
         return result
 
@@ -1607,7 +1728,8 @@ class PDFProcessor:
             'errors': []
         }
         if self.verbose:
-            pass # Removed print statements
+            # print("📊 Stats cleared") # Removed print
+            pass
 
 
 # ZIP Archive Handler
@@ -1646,11 +1768,13 @@ class ZIPProcessor:
         }
 
         if self.verbose:
-            pass # Removed print statements
+            # print("📦 ZIPProcessor initialized") # Removed print
             if self.file_handler:
-                pass # Removed print statements
+                # print(f"📁 Using FileHandler session: {self.file_handler.session_id}") # Removed print
+                pass
             if self.pdf_processor:
-                pass # Removed print statements
+                # print("📄 PDF processing enabled") # Removed print
+                pass
 
     def validate_zip(self, zip_path: str) -> Tuple[bool, str]:
         """
@@ -1671,7 +1795,6 @@ class ZIPProcessor:
             return False, f"ZIP too large: {file_size_mb:.1f}MB (max: {Config.ZIPProcessing.MAX_ZIP_SIZE_MB}MB)"
 
         try:
-            import zipfile # Imported locally here, but also at top of module
             with zipfile.ZipFile(zip_path, 'r') as zf:
                 # Check if it's a valid ZIP
                 if zf.testzip() is not None:
@@ -1734,10 +1857,13 @@ class ZIPProcessor:
         Path(extract_to).mkdir(parents=True, exist_ok=True) # type: ignore
 
         if self.verbose:
-            pass # Removed print statements
+            # print(f"📂 Extracting ZIP: {Path(zip_path).name}") # Removed print
+            # print(f"📍 Destination: {extract_to}") # Removed print
+            pass
+
         extracted_files = []
+
         try:
-            import zipfile # Imported locally here, but also at top of module
             with zipfile.ZipFile(zip_path, 'r') as zf:
                 # Extract all files
                 for member in zf.namelist():
@@ -1758,13 +1884,15 @@ class ZIPProcessor:
                     if os.path.isfile(extracted_path):
                         extracted_files.append(extracted_path)
                         if self.verbose and len(extracted_files) % 10 == 0:
-                            pass # Removed print statements
+                            # print(f"  Extracted {len(extracted_files)} files...") # Removed print
+                            pass
 
             self.extracted_files = extracted_files
             self.processing_stats['total_files'] = len(extracted_files)
 
             if self.verbose:
-                pass # Removed print statements
+                # print(f"✅ Extracted {len(extracted_files)} files") # Removed print
+                pass
 
             return extracted_files
 
@@ -1772,7 +1900,8 @@ class ZIPProcessor:
             error_msg = f"Extraction failed: {str(e)}"
             self.processing_stats['errors'].append(error_msg)
             if self.verbose:
-                pass # Removed print statements
+                # print(f"❌ {error_msg}") # Removed print
+                pass
             raise
 
     def filter_files_for_processing(
@@ -1804,7 +1933,9 @@ class ZIPProcessor:
                 self.processing_stats['skipped_files'] += 1
 
         if self.verbose:
-            pass # Removed print statements
+            # print(f"📋 Filtered files: {len(filtered)} to process, " # Removed print
+            #       f"{self.processing_stats['skipped_files']} skipped") # Removed print
+            pass
 
         return filtered
 
@@ -1834,7 +1965,8 @@ class ZIPProcessor:
         files_to_process = self.filter_files_for_processing(files)
 
         if self.verbose:
-            pass # Removed print statements
+            # print(f"🔄 Processing {len(files_to_process)} files...") # Removed print
+            pass
 
         for file_path in files_to_process:
             try:
@@ -1845,7 +1977,8 @@ class ZIPProcessor:
                 if file_ext == '.pdf' and self.pdf_processor:
                     # Process PDF
                     if self.verbose:
-                        pass # Removed print statements
+                        # print(f"  📄 Processing PDF: {file_name}") # Removed print
+                        pass
                     result = self.pdf_processor.process_pdf_for_translation(file_path)
                     results['processed'].append({
                         'file': file_path,
@@ -1856,7 +1989,8 @@ class ZIPProcessor:
                 elif file_ext in ['.jpg', '.jpeg', '.png', '.gif', '.bmp']:
                     # Process image
                     if self.verbose:
-                        pass # Removed print statements
+                        # print(f"  🖼️ Processing image: {file_name}") # Removed print
+                        pass
                     results['processed'].append({
                         'file': file_path,
                         'type': 'image',
@@ -1866,7 +2000,8 @@ class ZIPProcessor:
                 elif file_ext in ['.txt']:
                     # Process text file
                     if self.verbose:
-                        pass # Removed print statements
+                        # print(f"  📝 Processing text: {file_name}") # Removed print
+                        pass
                     with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
                         content = f.read()
                     results['processed'].append({
@@ -1899,7 +2034,11 @@ class ZIPProcessor:
                     raise
 
         if self.verbose:
-            pass # Removed print statements
+            # print("✅ Processing complete:") # Removed print
+            # print(f"   Processed: {len(results['processed'])}") # Removed print
+            # print(f"   Failed: {len(results['failed'])}") # Removed print
+            # print(f"   Skipped: {len(results['skipped'])}") # Removed print
+            pass
 
         return results
 
@@ -1921,12 +2060,13 @@ class ZIPProcessor:
             Path to created ZIP
         """
         if self.verbose:
-            pass # Removed print statements
+            # print(f"📦 Creating ZIP: {output_path}") # Removed print
+            # print(f"   Files to add: {len(files)}") # Removed print
+            pass
 
         compression = zipfile.ZIP_DEFLATED if Config.ZIPProcessing.COMPRESS_OUTPUT else zipfile.ZIP_STORED
 
         try:
-            import zipfile # Imported locally here, but also at top of module
             with zipfile.ZipFile(output_path, 'w', compression=compression) as zf:
                 for file_path in files:
                     if os.path.exists(file_path):
@@ -1939,13 +2079,17 @@ class ZIPProcessor:
                         zf.write(file_path, arcname)
 
                         if self.verbose and len(zf.namelist()) % 10 == 0:
-                            pass # Removed print statements
+                            # print(f"  Added {len(zf.namelist())} files...") # Removed print
+                            pass
 
             # Get final size
             zip_size_mb = os.path.getsize(output_path) / (1024 * 1024)
 
             if self.verbose:
-                pass # Removed print statements
+                # print(f"✅ Created ZIP: {output_path}") # Removed print
+                # print(f"   Size: {zip_size_mb:.2f}MB") # Removed print
+                # print(f"   Files: {len(files)}") # Removed print
+                pass
 
             return output_path
 
@@ -1953,7 +2097,8 @@ class ZIPProcessor:
             error_msg = f"ZIP creation failed: {str(e)}"
             self.processing_stats['errors'].append(error_msg)
             if self.verbose:
-                pass # Removed print statements
+                # print(f"❌ {error_msg}") # Removed print
+                pass
             raise
 
     def process_zip_archive(
@@ -1972,7 +2117,9 @@ class ZIPProcessor:
             Dictionary with processing results
         """
         if self.verbose:
-            pass # Removed print statements
+            # print(f"🔄 Processing ZIP archive: {Path(zip_path).name}") # Removed print
+            # print("="*50) # Removed print
+            pass
 
         # Validate ZIP
         is_valid, message = self.validate_zip(zip_path)
@@ -1999,7 +2146,9 @@ class ZIPProcessor:
         results['stats'] = self.processing_stats.copy()
 
         if self.verbose:
-            pass # Removed print statements
+            # print("="*50) # Removed print
+            # print("✅ ZIP processing complete!") # Removed print
+            pass
 
         return results
 
@@ -2010,7 +2159,8 @@ class ZIPProcessor:
             if os.path.exists(extract_dir):
                 shutil.rmtree(extract_dir)
                 if self.verbose:
-                    pass # Removed print statements
+                    # print("🗑️ Cleaned up extracted files") # Removed print
+                    pass
 
     def get_stats(self) -> Dict:
         """Get processing statistics."""
@@ -2053,9 +2203,10 @@ class OutputGenerator:
         }
 
         if self.verbose:
-            pass # Removed print statements
+            # print("📤 OutputGenerator initialized") # Removed print
             if self.file_handler:
-                pass # Removed print statements
+                # print(f"📁 Using session: {self.file_handler.session_id}") # Removed print
+                pass
 
     def generate_output_filename(
         self,
@@ -2113,7 +2264,8 @@ class OutputGenerator:
             Path to created file
         """
         if self.verbose:
-            pass # Removed print statements
+            # print(f"📝 Creating text output: {output_path}") # Removed print
+            pass
 
         try:
             with open(output_path, 'w', encoding='utf-8') as f:
@@ -2147,13 +2299,16 @@ class OutputGenerator:
             self.output_stats['formats_used'].add('txt')
 
             if self.verbose:
-                pass # Removed print statements
+                # size_mb = os.path.getsize(output_path) / (1024 * 1024) # Removed print
+                # print(f"✅ Created text file: {size_mb:.2f}MB") # Removed print
+                pass
 
             return output_path
 
         except Exception as e:
             if self.verbose:
-                pass # Removed print statements
+                # print(f"❌ Text output failed: {e}") # Removed print
+                pass
             raise
 
     def create_pdf_output(
@@ -2175,11 +2330,13 @@ class OutputGenerator:
         """
         if not self.pdf_processor:
             if self.verbose:
-                pass # Removed print statements
+                # print("⚠️ PDF processor not available, falling back to text") # Removed print
+                pass
             return self.create_text_output(translations, output_path.replace('.pdf', '.txt'))
 
         if self.verbose:
-            pass # Removed print statements
+            # print(f"📄 Creating PDF output: {output_path}") # Removed print
+            pass
 
         try:
             # Prepare content for PDF
@@ -2190,7 +2347,7 @@ class OutputGenerator:
                     if Config.OutputGeneration.LAYOUT_TYPE == 'side_by_side':
                         # Format as table or columns
                         content = "Original | Translation\n"
-                        content += f"{item['original']} | {item.get('translated', '')}"
+                        content += f"{item['original']} , '')}"
                     elif Config.OutputGeneration.LAYOUT_TYPE == 'interleaved':
                         content = f"Original:\n{item['original']}\n\n"
                         content += f"Translation:\n{item.get('translated', '')}"
@@ -2215,7 +2372,8 @@ class OutputGenerator:
 
         except Exception as e:
             if self.verbose:
-                pass # Removed print statements
+                # print(f"❌ PDF output failed: {e}") # Removed print
+                pass
             raise
 
     def create_report(
@@ -2234,7 +2392,8 @@ class OutputGenerator:
             Path to created report
         """
         if self.verbose:
-            pass # Removed print statements
+            # print(f"📊 Creating report: {output_path}") # Removed print
+            pass
 
         report_content = {
             'timestamp': datetime.now().isoformat(),
@@ -2269,13 +2428,15 @@ class OutputGenerator:
                     f.write("\n\n" + "="*60 + "\n")
 
             if self.verbose:
-                pass # Removed print statements
+                # print(f"✅ Report created: {output_path}") # Removed print
+                pass
 
             return output_path
 
         except Exception as e:
             if self.verbose:
-                pass # Removed print statements
+                # print(f"❌ Report creation failed: {e}") # Removed print
+                pass
             raise
 
     def generate_batch_output(
@@ -2298,7 +2459,8 @@ class OutputGenerator:
             Dictionary with output results
         """
         if self.verbose:
-            pass # Removed print statements
+            # print(f"📦 Generating batch output for {len(translations)} files") # Removed print
+            pass
 
         # Create output directory
         output_path = Path(output_dir) / Config.OutputGeneration.BATCH_OUTPUT_DIR
@@ -2372,7 +2534,11 @@ class OutputGenerator:
             self.create_report(results, str(report_path))
 
         if self.verbose:
-            pass # Removed print statements
+            # print("✅ Batch output complete:") # Removed print
+            # print(f"   Files created: {len(results['files_created'])}") # Removed print
+            # print(f"   Errors: {len(results['errors'])}") # Removed print
+            # print(f"   Output directory: {output_path}") # Removed print
+            pass
 
         return results
 
@@ -2422,7 +2588,8 @@ class OutputGenerator:
         start_time = datetime.now()
 
         if self.verbose:
-            pass # Removed print statements
+            # print(f"🔄 Processing output for: {Path(source_file).name}") # Removed print
+            pass
 
         # Determine output format
         if not output_format:
@@ -2479,7 +2646,10 @@ class OutputGenerator:
         self.output_stats['processing_time'] += processing_time
 
         if self.verbose:
-            pass # Removed print statements
+            # print(f"✅ Output generated: {Path(result).name}") # Removed print
+            # print(f"   Format: {output_format}") # Removed print
+            # print(f"   Processing time: {processing_time:.2f}s") # Removed print
+            pass
 
         return result
 

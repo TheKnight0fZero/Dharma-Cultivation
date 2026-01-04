@@ -1,0 +1,30 @@
+# Core Web Framework
+streamlit>=1.28.0
+
+# Image Processing
+pillow>=10.0.0
+opencv-python>=4.8.0
+numpy>=1.24.0
+
+# OCR (Text Detection)
+easyocr>=1.7.0
+pytesseract>=0.3.10
+
+# Translation
+deep-translator>=1.11.0
+
+# PDF Processing
+PyPDF2>=3.0.0
+pdf2image>=1.16.0
+pdfplumber>=0.10.0
+reportlab>=4.0.0
+
+# Utilities
+tqdm>=4.66.0
+pathlib>=1.0.1
+
+# System Dependencies (install separately)
+# sudo apt-get install tesseract-ocr
+# sudo apt-get install tesseract-ocr-chi-sim tesseract-ocr-jpn tesseract-ocr-kor tesseract-ocr-hin
+# sudo apt-get install poppler-utils
+# sudo apt-get install fonts-dejavu fonts-liberation fonts-noto-cjk

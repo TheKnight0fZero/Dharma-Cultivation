@@ -11,6 +11,7 @@ from typing import Dict, Any, Optional, List
 import tempfile
 import shutil
 from datetime import datetime
+import zipfile
 
 # Import from cleaned file
 try:
@@ -539,6 +540,8 @@ class TranslatorService:
                     'status': 'error',
                     'message': 'No images found in ZIP'
                 }
+            
+            translated_files = []
             
             # Translate each image
             # --- CHANGE 8: Removed hardcoded [:10] limit from image processing loop ---
