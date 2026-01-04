@@ -21,6 +21,37 @@ Reduced manual translation time by 90% (from 5 hours to 30 minutes for 100-page 
 - Reduced processing time by 30% through optimization
 ## 📊 Version History
 
+# Universal Translator v1.5 - MVP
+
+## What It Does
+Translates text in images from Chinese, Japanese, Korean, and Hindi to English with visual text replacement.
+
+## Quick Start
+```bash
+pip install -r requirements.txt
+streamlit run app.py
+
+Features
+
+Visual translation (replaces text in images)
+PDF support
+ZIP batch processing
+Web interface
+
+Known Limitations
+
+Simple white box overlay method
+No font style matching
+Basic layout preservation
+
+Status
+
+✅ MVP Complete - Ready for v2.0 AI enhancement
+
+Developer
+
+Victor - January 2026
+------------------------------------------------------------------------------
 V 1.5 summary
 
 Current Status:
